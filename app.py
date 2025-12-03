@@ -2,19 +2,20 @@ import streamlit as st
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
-from pyclustering.cluster.kmedoids import kmedoids
-from pyclustering.utils.metric import distance_metric, type_metric
 from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+from pyclustering.cluster.kmedoids import kmedoids
+from pyclustering.utils.metric import distance_metric, type_metric
 
 st.title("Clustering Flight Delays (K-Means vs K-Medoids)")
 
 uploaded = st.file_uploader("Upload Dataset (.csv/.xlsx)")
 
 if uploaded:
-    # Load file
+    # Load data
     if uploaded.name.endswith(".xlsx"):
         df = pd.read_excel(uploaded)
     else:
@@ -23,7 +24,7 @@ if uploaded:
     st.subheader("Preview Data")
     st.dataframe(df.head())
 
-    # Ambil kolom numerik otomatis
+    # Ambil kolom numerik
     numeric_cols = df.select_dtypes(include="number").columns
     st.write("Kolom numerik yang digunakan:", numeric_cols.tolist())
 
@@ -33,39 +34,47 @@ if uploaded:
     scaler = StandardScaler()
     X = scaler.fit_transform(data)
 
-    # Pilihan jumlah cluster
+    # Slider cluster
     k = st.slider("Jumlah Cluster (k)", 2, 10, 3)
 
-    # K-Means
+    # ======================
+    # K-MEANS
+    # ======================
     kmeans = KMeans(n_clusters=k, random_state=42)
     kmeans_labels = kmeans.fit_predict(X)
     sil_kmeans = silhouette_score(X, kmeans_labels)
 
-    # K-Medoids
-# K-Medoids menggunakan PyClustering
-metric = distance_metric(type_metric.EUCLIDEAN)
+    # ======================
+    # K-MEDOIDS (PyClustering)
+    # ======================
+    metric = distance_metric(type_metric.EUCLIDEAN)
 
-# pilih titik awal medoid (acak)
-initial_medoids = list(range(k))
+    # Ambil k titik awal pertama
+    initial_medoids = list(range(k))
 
-kmedoids_instance = kmedoids(X, initial_medoids, metric=metric)
-kmedoids_instance.process()
+    kmedoids_instance = kmedoids(X, initial_medoids, metric=metric)
+    kmedoids_instance.process()
 
-clusters = kmedoids_instance.get_clusters()
+    clusters = kmedoids_instance.get_clusters()
 
-# ubah clusters (list of lists) menjadi label array
-kmedoids_labels = [0] * len(X)
-for cluster_id, cluster in enumerate(clusters):
-    for index in cluster:
-        kmedoids_labels[index] = cluster_id
+    # Konversi cluster list → label array
+    kmedoids_labels = [-1] * len(X)
+    for cluster_id, cluster in enumerate(clusters):
+        for idx in cluster:
+            kmedoids_labels[idx] = cluster_id
 
     sil_kmedoids = silhouette_score(X, kmedoids_labels)
 
+    # ======================
+    # OUTPUT SILHOUETTE SCORE
+    # ======================
     st.subheader("Silhouette Score")
     st.write("K-Means =", sil_kmeans)
     st.write("K-Medoids =", sil_kmedoids)
 
-    # PCA visualisasi
+    # ======================
+    # VISUALISASI PCA
+    # ======================
     pca = PCA(n_components=2)
     X_pca = pca.fit_transform(X)
 
