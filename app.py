@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
-from sklearn_extra.cluster import KMedoids
+from pyclustering.cluster.kmedoids import kmedoids
+from pyclustering.utils.metric import distance_metric, type_metric
 from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
@@ -41,8 +42,23 @@ if uploaded:
     sil_kmeans = silhouette_score(X, kmeans_labels)
 
     # K-Medoids
-    kmedoids = KMedoids(n_clusters=k, metric="euclidean", random_state=42)
-    kmedoids_labels = kmedoids.fit_predict(X)
+# K-Medoids menggunakan PyClustering
+metric = distance_metric(type_metric.EUCLIDEAN)
+
+# pilih titik awal medoid (acak)
+initial_medoids = list(range(k))
+
+kmedoids_instance = kmedoids(X, initial_medoids, metric=metric)
+kmedoids_instance.process()
+
+clusters = kmedoids_instance.get_clusters()
+
+# ubah clusters (list of lists) menjadi label array
+kmedoids_labels = [0] * len(X)
+for cluster_id, cluster in enumerate(clusters):
+    for index in cluster:
+        kmedoids_labels[index] = cluster_id
+
     sil_kmedoids = silhouette_score(X, kmedoids_labels)
 
     st.subheader("Silhouette Score")
